@@ -1,0 +1,36 @@
+{
+  "name": "react-mini",
+  "version": "1.0.0",
+  "description": "build your own react",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dongxingyan/react-mini.git"
+  },
+  "devDependencies": {
+    "@babel/core": "7.8.4",
+    "@babel/plugin-proposal-decorators": "7.8.3",
+    "@babel/preset-env": "7.8.7",
+    "babel-eslint": "^10.1.0",
+    "babel-preset-stage-0": "^6.24.1",
+    "eslint": "^7.20.0",
+    "eslint-config-standard": "^16.0.2",
+    "eslint-plugin-babel": "^5.3.1",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^4.3.1",
+    "eslint-plugin-react": "^7.22.0",
+    "eslint-plugin-standard": "^5.0.0",
+    "husky": "^4.2.5",
+    "lint-staged": "^10.5.4"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dongxingyan/react-mini/issues"
+  },
+  "homepage": "https://github.com/dongxingyan/react-mini#readme"
+}
