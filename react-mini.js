@@ -22,15 +22,35 @@ function createTextElement(text) {
     };
 }
 
+function render(element, container) {
+    const dom = element.type === 'TEXT_ELEMENT'
+        ? document.createTextNode('')
+        : document.createElement(element.type);
+
+    const isProperty = key => key !== 'children';
+    Object.keys(element.props)
+        .filter(isProperty)
+        .forEach(name => {
+            dom[name] = element.props[name];
+        });
+    element.props.children.forEach(child =>
+        render(child, dom)
+    );
+    container.appendChild(dom);
+}
+
 const Didact = {
-    createElement
+    createElement,
+    render
 };
 
 const element = Didact.createElement(
     'div',
     { id: 'foo' },
-    Didact.createElement('a', null, 'bar'),
+    Didact.createElement('a', null, 'hello world'),
     Didact.createElement('b')
 );
+const container = document.getElementById('root');
+Didact.render(element, container);
 
 console.log('element', element);
