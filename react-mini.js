@@ -37,19 +37,36 @@ function createDom(fiber) {
     return dom;
 }
 
+function commitRoot() {
+    commitWork(wipRoot.child);
+    wipRoot = null;
+}
+
+function commitWork(fiber) {
+    if (!fiber) {
+        return;
+    }
+    const domParent = fiber.parent.dom; ;
+    domParent.appendChild(fiber.dom);
+    commitWork(fiber.child);
+    commitWork(fiber.sibling);
+}
+
 function render(element, container) {
     // element.props.children.forEach(child =>
     //     render(child, dom)
     // );
     // container.appendChild(dom);
-    nextUnitOfWork = {
+    wipRoot = {
         dom: container,
         props: {
             children: [element]
         }
     };
+    nextUnitOfWork = wipRoot;
+    console.log('nextUnitOfWork', nextUnitOfWork);
 }
-
+let wipRoot = null;
 let nextUnitOfWork = null;
 
 function workLoop(deadline) {
@@ -61,12 +78,18 @@ function workLoop(deadline) {
         );
         shouldYield = deadline.timeRemaining() < 1;
     }
+
+    if (!nextUnitOfWork && wipRoot) {
+        commitRoot();
+    }
+
     requestIdleCallback(workLoop);
 }
 
 requestIdleCallback(workLoop);
 
 function performUnitOfWork(fiber) {
+    console.log('fiber===', fiber);
     if (!fiber.dom) {
         fiber.dom = createDom(fiber);
     }
@@ -76,6 +99,7 @@ function performUnitOfWork(fiber) {
     }
 
     const elements = fiber.props.children;
+
     let index = 0;
     let prevSibling = null;
     while (index < elements.length) {
@@ -118,7 +142,7 @@ const element = Didact.createElement(
     'div',
     { id: 'foo' },
     Didact.createElement('a', null, 'hello world'),
-    Didact.createElement('b')
+    Didact.createElement('b', null, 'ahaaa')
 );
 const container = document.getElementById('root');
 Didact.render(element, container);
