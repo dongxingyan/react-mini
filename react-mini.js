@@ -48,16 +48,28 @@ function commitWork(fiber) {
     if (!fiber) {
         return;
     }
+    let domParentFiber = fiber.parent;
+    while (!domParentFiber.dom) {
+        domParentFiber = domParentFiber.parent;
+    }
     const domParent = fiber.parent.dom; ;
     if (fiber.effectTag === 'PLACEMENT' && fiber.dom !== null) {
         domParent.appendChild(fiber.dom);
     } else if (fiber.effectTag === 'UPDATE' && fiber.dom !== null) {
         updateDom(fiber.dom, fiber.alternate.props, fiber.props);
     } else if (fiber.effectTag === 'DELETION') {
-        domParent.removeChild(fiber.dom);
+        commitDeletion(fiber, domParentFiber);
     }
     commitWork(fiber.child);
     commitWork(fiber.sibling);
+}
+
+function commitDeletion(fiber, domParent) {
+    if (fiber.dom) {
+        domParent.removeChild(fiber.dom);
+    } else {
+        commitDeletion(fiber.child, domParent);
+    }
 }
 
 const isEvent = key => key.startsWith('on');
@@ -140,12 +152,12 @@ function workLoop(deadline) {
     requestIdleCallback(workLoop);
 }
 
-// requestIdleCallback(workLoop);
+requestIdleCallback(workLoop);
 
 function reconcileChildren(wipFiber, elements) {
     const index = 0;
-    const oldFiber = wipFiber.alternate && wipFiber.alternate.child;
-    const prevSibling = null;
+    let oldFiber = wipFiber.alternate && wipFiber.alternate.child;
+    let prevSibling = null;
     while (index < elements.length || oldFiber !== null) {
         const element = elements[index];
         let newFiber = null;
@@ -176,14 +188,29 @@ function reconcileChildren(wipFiber, elements) {
             deletions.push(oldFiber);
         }
 
+        if (oldFiber) {
+            oldFiber = oldFiber.sibling;
+        }
+
         if (index === 0) {
             wipFiber.child = newFiber;
+        } else {
+            prevSibling.sibling = newFiber;
         }
+        prevSibling = newFiber;
     }
 }
 
 function performUnitOfWork(fiber) {
     console.log('fiber===', fiber);
+
+    const isFunctionComponent = fiber.type instanceof Function;
+    if (isFunctionComponent) {
+        updateFunctionComponent(fiber);
+    } else {
+        updateHostComponent(fiber);
+    }
+
     if (!fiber.dom) {
         fiber.dom = createDom(fiber);
     }
@@ -228,6 +255,18 @@ function performUnitOfWork(fiber) {
     }
 }
 
+function updateFunctionComponent(fiber) {
+    const children = [fiber.type(fiber.props)];
+    reconcileChildren(fiber, children);
+}
+
+function updateHostComponent(fiber) {
+    if (!fiber.dom) {
+        fiber.dom = createDom(fiber);
+    }
+    reconcileChildren(fiber, fiber.props.children);
+}
+
 const Didact = {
     createElement,
     render
@@ -235,18 +274,24 @@ const Didact = {
 
 const container = document.getElementById('root');
 
-const updateValue = e => {
-    rerender(e.target.value);
-};
+// const updateValue = e => {
+//     rerender(e.target.value);
+// };
 /** @jsx Didact.createElement */
-const rerender = value => {
-    const element = (
-        <div>
-            <input onInput={updateValue} value={value} />
-            <h2>Hello {value}</h2>
-        </div>
-    );
-    Didact.render(element, container);
-};
+// const rerender = value => {
+//     const element = (
+//         <div>
+//             <input onInput={updateValue} value={value} />
+//             <h2>Hello {value}</h2>
+//         </div>
+//     );
+//     Didact.render(element, container);
+// };
 
-rerender('please input');
+// rerender('please input');
+
+function App(props) {
+    return <h1>Hi {props.name}</h1>;
+}
+const element = <App name='foo' />;
+Didact.render(element, container);
