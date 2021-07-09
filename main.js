@@ -1,12 +1,21 @@
 const isProperty = key => key !== 'children' && !isEvent(key);
+// 下一个工作单元
 let nextUnitOfWork = null;
+// 当前要修改的fiber树
 let wipRoot = null;
+// 上一次提交后的fiber树
 let currentRoot = null;
+// 旧节点集合
 let deletions = null;
+// 保存的当前fiber树
 let wipFiber = null;
+// 当前执行的hook索引，用于区分每次执行哪个hook
 let hookIndex = null;
+// 是否为新增属性
 const isNew = (prev, next) => key => prev[key] !== next[key];
+// 是否为要移除的属性
 const isGone = (prev, next) => key => !(key in next);
+// 是否是事件属性
 const isEvent = key => key.startsWith('on');
 
 requestIdleCallback(workLoop);
@@ -51,9 +60,8 @@ function updateDom(dom, prevProps, nextProps) {
     Object.keys(prevProps)
         .filter(isEvent)
         .filter(
-            key =>
-                !(key in nextProps) ||
-     isNew(prevProps, nextProps)(key)
+            key => !(key in nextProps) ||
+            isNew(prevProps, nextProps)(key)
         )
         .forEach(name => {
             const eventType = name
@@ -96,10 +104,15 @@ function updateDom(dom, prevProps, nextProps) {
         });
 }
 
+// 将所有的元素添加到dom树
 function commitRoot() {
+    // 移除旧节点
     deletions.forEach(commitWork);
+    // 提交当前fiber树的所有子元素
     commitWork(wipRoot.child);
+    // 修改上一次提交的fiber树
     currentRoot = wipRoot;
+    // 清空当前fiber树
     wipRoot = null;
 }
 
@@ -108,6 +121,7 @@ function commitWork(fiber) {
         return;
     }
     let domParentFiber = fiber.parent;
+    // 递归找到 含有 dom 节点的 元素
     while (!domParentFiber.dom) {
         domParentFiber = domParentFiber.parent;
     }
@@ -138,6 +152,7 @@ function commitDeletion(fiber, domParent) {
     if (fiber.dom) {
         domParent.removeChild(fiber.dom);
     } else {
+        // 删除节点，一直到有dom节点的元素
         commitDeletion(fiber.child, domParent);
     }
 }
@@ -163,6 +178,7 @@ function workLoop(deadline) {
         shouldYield = deadline.timeRemaining() < 1;
     }
 
+    // 所有的工作单元执行完后，一并进行提交
     if (!nextUnitOfWork && wipRoot) {
         commitRoot();
     }
@@ -174,8 +190,8 @@ function workLoop(deadline) {
 // 函数组件没有dom节点
 // 函数组件的children属性不在props上，而是通过返回值获取
 function performUnitOfWork(fiber) {
-    const isFunctionComponent =
-    fiber.type instanceof Function;
+    // 判断是否是函数组件
+    const isFunctionComponent = fiber.type instanceof Function;
     if (isFunctionComponent) {
         updateFunctionComponent(fiber);
     } else {
@@ -198,6 +214,7 @@ function updateFunctionComponent(fiber) {
     wipFiber = fiber;
     hookIndex = 0;
     wipFiber.hooks = [];
+    // 调用函数组件获取children
     const children = [fiber.type(fiber.props)];
     reconcileChildren(fiber, children);
 }
@@ -209,6 +226,7 @@ function useState(initial) {
       wipFiber.alternate.hooks[hookIndex];
 
     const hook = {
+        // 存在旧值则取旧值，否则取初始值
         state: oldHook ? oldHook.state : initial,
         queue: []
     };
@@ -225,6 +243,7 @@ function useState(initial) {
             props: currentRoot.props,
             alternate: currentRoot
         };
+        // 更新下一个工作单元
         nextUnitOfWork = wipRoot;
         deletions = [];
     };
@@ -252,6 +271,7 @@ function reconcileChildren(wipFiber, elements) {
 
         const sameType = oldFiber && element && element.type === oldFiber.type;
 
+        // 类型相同，执行更新
         if (sameType) {
         // TODO update the node
             newFiber = {
@@ -263,6 +283,8 @@ function reconcileChildren(wipFiber, elements) {
                 effectTag: 'UPDATE'
             };
         }
+
+        // 类型不同，且有新的fiber，执行新增
         if (element && !sameType) {
         // TODO add this node
             newFiber = {
@@ -274,18 +296,22 @@ function reconcileChildren(wipFiber, elements) {
                 effectTag: 'PLACEMENT'
             };
         }
+        // 类型不同，但是存在旧fiber树，则进行移除
         if (oldFiber && !sameType) {
         // TODO delete the oldFiber's node
             oldFiber.effectTag = 'DELETION';
             deletions.push(oldFiber);
         }
+        // 用于下一次循环的时候对兄弟fiber进行比较
         if (oldFiber) {
             oldFiber = oldFiber.sibling;
         }
 
         if (index === 0) {
+            // 如果是第一个子元素，则把新fiber挂到wipFiber的child上
             wipFiber.child = newFiber;
         } else {
+            // 其他子元素挂到上一个子元素的sibling属性
             prevSibling.sibling = newFiber;
         }
 
