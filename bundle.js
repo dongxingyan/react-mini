@@ -4,6 +4,8 @@ let nextUnitOfWork = null;
 let wipRoot = null;
 let currentRoot = null;
 let deletions = null;
+let wipFiber = null;
+let hookIndex = null;
 
 const isNew = (prev, next) => key => prev[key] !== next[key];
 
@@ -154,8 +156,38 @@ function performUnitOfWork(fiber) {
 }
 
 function updateFunctionComponent(fiber) {
+  wipFiber = fiber;
+  hookIndex = 0;
+  wipFiber.hooks = [];
   const children = [fiber.type(fiber.props)];
   reconcileChildren(fiber, children);
+}
+
+function useState(initial) {
+  const oldHook = wipFiber.alternate && wipFiber.alternate.hooks && wipFiber.alternate.hooks[hookIndex];
+  const hook = {
+    state: oldHook ? oldHook.state : initial,
+    queue: []
+  };
+  const actions = oldHook ? oldHook.queue : [];
+  actions.forEach(action => {
+    hook.state = action(hook.state);
+  });
+
+  const setState = action => {
+    hook.queue.push(action);
+    wipRoot = {
+      dom: currentRoot.dom,
+      props: currentRoot.props,
+      alternate: currentRoot
+    };
+    nextUnitOfWork = wipRoot;
+    deletions = [];
+  };
+
+  wipFiber.hooks.push(hook);
+  hookIndex++;
+  return [hook.state, setState];
 }
 
 function updateHostComponent(fiber) {
@@ -223,17 +255,19 @@ function reconcileChildren(wipFiber, elements) {
 
 const Didact = {
   createElement,
-  render
+  render,
+  useState
 };
 /** @jsx Didact.createElement */
 
 const container = document.getElementById('root');
 
-function App(props) {
-  return Didact.createElement("h1", null, "Hello ", props.name);
+function Counter() {
+  const [state, setState] = Didact.useState(1);
+  return Didact.createElement("div", null, Didact.createElement("button", {
+    onClick: () => setState(c => c + 1)
+  }, "\u70B9\u51FB\u6309\u94AE"), Didact.createElement("h1", null, "current Count is: ", state));
 }
 
-const element = Didact.createElement(App, {
-  name: "react"
-});
+const element = Didact.createElement(Counter, null);
 Didact.render(element, container);
