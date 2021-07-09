@@ -1,3 +1,5 @@
+const isProperty = key => key !== 'children';
+
 function createElement(type, props, ...children) {
     return {
         type,
@@ -22,8 +24,28 @@ function createTextElement(text) {
     };
 }
 
+function render(element, container) {
+    const dom =
+    element.type === 'TEXT_ELEMENT'
+        ? document.createTextNode('')
+        : document.createElement(element.type);
+
+    Object.keys(element.props)
+        .filter(isProperty)
+        .forEach(name => {
+            dom[name] = element.props[name];
+        });
+
+    element.props.children.forEach(child =>
+        render(child, dom)
+    );
+
+    container.appendChild(dom);
+}
+
 const Didact = {
-    createElement
+    createElement,
+    render
 };
 
 /** @jsx Didact.createElement */
@@ -33,4 +55,5 @@ const element = (
         <p>build your own react</p>
     </div>
 );
-console.log(element);
+const container = document.getElementById('root');
+Didact.render(element, container);
