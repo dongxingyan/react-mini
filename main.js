@@ -1,5 +1,6 @@
 const isProperty = key => key !== 'children';
 let nextUnitOfWork = null;
+let wipRoot = null;
 
 requestIdleCallback(workLoop);
 
@@ -42,13 +43,30 @@ function createDom(fiber) {
     return dom;
 }
 
+function commitRoot() {
+    commitWork(wipRoot.child);
+    wipRoot = null;
+}
+
+function commitWork(fiber) {
+    if (!fiber) {
+        return;
+    }
+    const domParent = fiber.parent.dom;
+    // NOTE:只处理了添加DOM节点，那么如何删除和更新DOM节点？
+    domParent.appendChild(fiber.dom);
+    commitWork(fiber.child);
+    commitWork(fiber.sibling);
+}
+
 function render(element, container) {
-    nextUnitOfWork = {
+    wipRoot = {
         dom: container,
         props: {
             children: [element]
         }
     };
+    nextUnitOfWork = wipRoot;
 }
 
 function workLoop(deadline) {
@@ -59,6 +77,11 @@ function workLoop(deadline) {
         );
         shouldYield = deadline.timeRemaining() < 1;
     }
+
+    if (!nextUnitOfWork && wipRoot) {
+        commitRoot();
+    }
+
     requestIdleCallback(workLoop);
 }
 
