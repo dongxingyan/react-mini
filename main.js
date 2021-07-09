@@ -105,7 +105,11 @@ function commitWork(fiber) {
     if (!fiber) {
         return;
     }
-    const domParent = fiber.parent.dom;
+    let domParentFiber = fiber.parent;
+    while (!domParentFiber.dom) {
+        domParentFiber = domParentFiber.parent;
+    }
+    const domParent = domParentFiber.dom;
     if (
         fiber.effectTag === 'PLACEMENT' &&
         fiber.dom != null
@@ -121,11 +125,19 @@ function commitWork(fiber) {
             fiber.props
         );
     } else if (fiber.effectTag === 'DELETION') {
-        domParent.removeChild(fiber.dom);
+        commitDeletion(fiber, domParent);
     }
 
     commitWork(fiber.child);
     commitWork(fiber.sibling);
+}
+
+function commitDeletion(fiber, domParent) {
+    if (fiber.dom) {
+        domParent.removeChild(fiber.dom);
+    } else {
+        commitDeletion(fiber.child, domParent);
+    }
 }
 
 function render(element, container) {
@@ -156,13 +168,18 @@ function workLoop(deadline) {
     requestIdleCallback(workLoop);
 }
 
+// NOTE: 函数组件的不同点：
+// 函数组件没有dom节点
+// 函数组件的children属性不在props上，而是通过返回值获取
 function performUnitOfWork(fiber) {
-    if (!fiber.dom) {
-        fiber.dom = createDom(fiber);
+    const isFunctionComponent =
+    fiber.type instanceof Function;
+    if (isFunctionComponent) {
+        updateFunctionComponent(fiber);
+    } else {
+        updateHostComponent(fiber);
     }
 
-    const elements = fiber.props.children;
-    reconcileChildren(fiber, elements);
     if (fiber.child) {
         return fiber.child;
     }
@@ -173,6 +190,18 @@ function performUnitOfWork(fiber) {
         }
         nextFiber = nextFiber.parent;
     }
+}
+
+function updateFunctionComponent(fiber) {
+    const children = [fiber.type(fiber.props)];
+    reconcileChildren(fiber, children);
+}
+
+function updateHostComponent(fiber) {
+    if (!fiber.dom) {
+        fiber.dom = createDom(fiber);
+    }
+    reconcileChildren(fiber, fiber.props.children);
 }
 
 function reconcileChildren(wipFiber, elements) {
@@ -236,18 +265,10 @@ const Didact = {
 /** @jsx Didact.createElement */
 const container = document.getElementById('root');
 
-const updateValue = e => {
-    rerender(e.target.value);
-};
+function App(props) {
+    return <h1>Hello {props.name}</h1>;
+}
 
-const rerender = value => {
-    const element = (
-        <div>
-            <input onInput={updateValue} value={value} />
-            <h2>Hello {value}</h2>
-        </div>
-    );
-    Didact.render(element, container);
-};
+const element = <App name='react' />;
 
-rerender('React');
+Didact.render(element, container);
